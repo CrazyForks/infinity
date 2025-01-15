@@ -1,8 +1,8 @@
 import asyncio
 import copy
 import random
+import sys
 import time
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -17,16 +17,24 @@ from infinity_emb.transformer.embedder.sentence_transformer import (
 BATCH_SIZE = 32
 N_TIMINGS = 3
 LIMIT_SLOWDOWN = 1.25 if torch.cuda.is_available() else 1.35
+MODEL_NAME: str = pytest.DEFAULT_BERT_MODEL  # type: ignore[assignment]
 
 
 @pytest.fixture
 @pytest.mark.anyio
-async def load_patched_bh() -> Tuple[SentenceTransformerPatched, BatchHandler]:
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12) and sys.platform in ["win32", "darwin"],
+    reason="windows and macos are not stable with python3.12",
+)
+async def load_patched_bh() -> tuple[SentenceTransformerPatched, BatchHandler]:
     model = SentenceTransformerPatched(
-        engine_args=EngineArgs(model_name_or_path=pytest.DEFAULT_BERT_MODEL, bettertransformer=not torch.backends.mps.is_available())  # type: ignore
+        engine_args=EngineArgs(
+            model_name_or_path=MODEL_NAME,
+            bettertransformer=not torch.backends.mps.is_available(),
+        )
     )
     model.encode(["hello " * 512] * BATCH_SIZE)
-    bh = BatchHandler(model=model, max_batch_size=BATCH_SIZE)
+    bh = BatchHandler(model_replicas=[model], max_batch_size=BATCH_SIZE)
     await bh.spawn()
     return model, bh
 
@@ -90,9 +98,7 @@ async def test_batch_performance_raw(get_sts_bechmark_dataset, load_patched_bh):
         time.sleep(2)
         time_st = np.median([method_st(sentences) for _ in range(N_TIMINGS)])
         time.sleep(2)
-        time_st_patched = np.median(
-            [method_patched(sentences) for _ in range(N_TIMINGS)]
-        )
+        time_st_patched = np.median([method_patched(sentences) for _ in range(N_TIMINGS)])
 
         print(
             f"times are sentence-transformers: {time_st},"
@@ -108,8 +114,7 @@ async def test_batch_performance_raw(get_sts_bechmark_dataset, load_patched_bh):
             f" SentenceTransformers.encode: {time_st_patched} > {time_st}"
         )
         assert time_batch_handler / time_st < LIMIT_SLOWDOWN, (
-            "batch_handler slower than Sentence Transformers"
-            f" {time_batch_handler}: > {time_st}"
+            "batch_handler slower than Sentence Transformers" f" {time_batch_handler}: > {time_st}"
         )
         assert time_batch_handler / time_st_patched < LIMIT_SLOWDOWN, (
             "raw batch_handler threaded queueing looses significant "

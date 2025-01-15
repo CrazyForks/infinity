@@ -7,9 +7,14 @@ on:
         required: true
         type: string
         description: "From which folder this pipeline executes"
+      extra_poetry:
+        description: 'Extra poetry commands to run'
+        required: false
+        type: string
+        default: "--extras all --with test,lint,codespell"
 
 env:
-  POETRY_VERSION: "1.7.1"
+  POETRY_VERSION: "1.8.4"
   WORKDIR: ${{ inputs.working-directory == '' && '.' || inputs.working-directory }}
 
   # This env var allows us to get inline annotations when ruff has complaints.
@@ -32,8 +37,11 @@ jobs:
           - "3.9"
           - "3.12"
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@v1.3.0
+        uses: "./.github/actions/disk_cleanup"
         if: runner.os == 'Linux'
         with:
           tool-cache: false
@@ -43,7 +51,6 @@ jobs:
           large-packages: false
           docker-images: false
           swap-storage: false
-      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }} + Poetry ${{ env.POETRY_VERSION }}
         uses: "./.github/actions/poetry_setup"
@@ -76,13 +83,7 @@ jobs:
         # It doesn't matter how you change it, any change will cause a cache-bust .
         working-directory: ${{ inputs.working-directory }}
         run: |
-          poetry install --extras "all" --with test,lint,codespell
-
-      # - name: Install infinity_emb editable
-      #   working-directory: ${{ inputs.working-directory }}
-      #   if: ${{ inputs.working-directory != 'libs/infinity_emb' }}
-      #   run: |
-      #     pip install -e ../infinity_emb
+          poetry install ${{ inputs.extra_poetry }}
 
       - name: Get .mypy_cache to speed up mypy
         uses: actions/cache@v4

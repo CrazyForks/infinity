@@ -8,20 +8,20 @@ from infinity_emb.args import EngineArgs
 from infinity_emb.primitives import Device, InferenceEngine
 
 PREFIX = "/v1_optimum"
-MODEL: str = (
-    "vectoriseai/bge-small-en-v1.5"  #  pytest.DEFAULT_BERT_MODEL  # type: ignore
-)
+MODEL: str = pytest.DEFAULT_BERT_MODEL  # type: ignore
 
 batch_size = 8
 
 app = create_server(
     url_prefix=PREFIX,
-    engine_args=EngineArgs(
-        model_name_or_path=MODEL,
-        batch_size=batch_size,
-        engine=InferenceEngine.optimum,
-        device=Device.cpu,
-    ),
+    engine_args_list=[
+        EngineArgs(
+            model_name_or_path=MODEL,
+            batch_size=batch_size,
+            engine=InferenceEngine.optimum,
+            device=Device.cpu,
+        )
+    ],
 )
 
 
@@ -32,9 +32,9 @@ def model_base() -> SentenceTransformer:
 
 @pytest.fixture()
 async def client():
-    async with AsyncClient(
-        app=app, base_url="http://test", timeout=20
-    ) as client, LifespanManager(app):
+    async with AsyncClient(app=app, base_url="http://test", timeout=20) as client, LifespanManager(
+        app
+    ):
         yield client
 
 
@@ -50,9 +50,7 @@ async def test_model_route(client):
 
 @pytest.mark.anyio
 async def test_embedding(client, model_base, helpers):
-    await helpers.embedding_verify(
-        client, model_base, prefix=PREFIX, model_name=MODEL, decimal=2
-    )
+    await helpers.embedding_verify(client, model_base, prefix=PREFIX, model_name=MODEL, atol=5e-2)
 
 
 @pytest.mark.performance
@@ -66,5 +64,5 @@ async def test_batch_embedding(client, get_sts_bechmark_dataset, model_base, hel
         model_name=MODEL,
         batch_size=batch_size,
         downsample=16,
-        decimal=1,
+        atol=5e-2,
     )

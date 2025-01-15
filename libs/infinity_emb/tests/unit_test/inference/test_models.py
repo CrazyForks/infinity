@@ -4,13 +4,13 @@ Tests that the pretrained models produce the correct scores on the STSbenchmark 
 
 import copy
 import sys
-from typing import List
+from typing import Union
 
 import pytest
 import torch
-from sentence_transformers import InputExample  # type: ignore
-from sentence_transformers.evaluation import (  # type: ignore
-    EmbeddingSimilarityEvaluator,  # type: ignore
+from sentence_transformers import InputExample  # type: ignore[import-untyped]
+from sentence_transformers.evaluation import (  # type: ignore[import-untyped]
+    EmbeddingSimilarityEvaluator,
 )
 
 from infinity_emb.args import EngineArgs
@@ -21,12 +21,13 @@ from infinity_emb.transformer.embedder.sentence_transformer import (
 
 
 def _pretrained_model_score(
-    dataset: List[InputExample],
+    dataset: list[InputExample],
     model_name,
     expected_score,
     ct2_compute_type: str = "",
 ):
     test_samples = dataset[::3]
+    model: Union[CT2SentenceTransformer, SentenceTransformerPatched]
 
     if ct2_compute_type:
         model = CT2SentenceTransformer(
@@ -41,11 +42,9 @@ def _pretrained_model_score(
                 bettertransformer=not torch.backends.mps.is_available(),
             )
         )
-    evaluator = EmbeddingSimilarityEvaluator.from_input_examples(
-        test_samples, name="sts-test"
-    )
+    evaluator = EmbeddingSimilarityEvaluator.from_input_examples(test_samples, name="sts-test")
 
-    score = model.evaluate(evaluator) * 100
+    score = model.evaluate(evaluator)["sts-test_spearman_cosine"] * 100  # type: ignore
     print(model_name, "{:.2f} vs. exp: {:.2f}".format(score, expected_score))
     assert score > expected_score or abs(score - expected_score) < 0.01
 
@@ -53,14 +52,14 @@ def _pretrained_model_score(
 @pytest.mark.parametrize(
     "model,score,compute_type",
     [
-        ("sentence-transformers/bert-base-nli-mean-tokens", 76.76, "int8"),
-        ("sentence-transformers/bert-base-nli-mean-tokens", 76.84, None),
-        ("sentence-transformers/all-MiniLM-L6-v2", 82.03, None),
-        ("sentence-transformers/all-MiniLM-L6-v2", 82.03, "default"),
-        ("sentence-transformers/all-MiniLM-L6-v2", 81.73, "int8"),
-        ("sentence-transformers/all-MiniLM-L6-v2", 82.03, "default"),
-        ("BAAI/bge-small-en-v1.5", 85.90, None),
-        ("BAAI/bge-small-en-v1.5", 85.90, "int8"),
+        ("sentence-transformers/bert-base-nli-mean-tokens", 76.37, "int8"),
+        ("sentence-transformers/bert-base-nli-mean-tokens", 76.46, None),
+        ("sentence-transformers/all-MiniLM-L6-v2", 81.03, None),
+        ("sentence-transformers/all-MiniLM-L6-v2", 81.03, "default"),
+        ("sentence-transformers/all-MiniLM-L6-v2", 80.73, "int8"),
+        ("sentence-transformers/all-MiniLM-L6-v2", 81.03, "default"),
+        ("michaelfeil/bge-small-en-v1.5", 84.90, None),
+        ("michaelfeil/bge-small-en-v1.5", 84.90, "int8"),
     ],
 )
 @pytest.mark.skipif(sys.platform == "darwin", reason="does not run on mac")

@@ -1,3 +1,4 @@
+# This workflow will build a docker image and push it to Docker Hub
 name: release_docker
 
 on:
@@ -11,15 +12,25 @@ on:
         required: true
         type: string
         description: "Name of the image to build"
+      appendix_tag:
+        required: false
+        type: string
+        description: "Appendix tag to add to the image, e.g. `-cpu`"
       context:
         required: false
         type: string
         description: "Path to the build context"
         default: "./libs/infinity_emb"
+      platforms:
+        required: false
+        type: string
+        description: "Platforms to build for"
+        default: "linux/amd64,linux/arm64"
 
 env:
   TEST_TAG: ${{ inputs.image }}:test
   LATEST_TAG: ${{ inputs.image }}:latest
+  APPENDIX_TAG: ${{ inputs.appendix_tag || '' }}
 
 jobs:
   docker:
@@ -27,8 +38,10 @@ jobs:
     environment:
       name: publish
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@v1.3.0
+        uses: "./.github/actions/disk_cleanup"
         if: runner.os == 'Linux'
         with:
           tool-cache: false
@@ -38,8 +51,6 @@ jobs:
           large-packages: false
           docker-images: false
           swap-storage: false
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Get git tag
         uses: actions-ecosystem/action-get-latest-tag@v1
         id: get-latest-tag
@@ -58,6 +69,8 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Uncomment the following steps if you want to build and test the image locally
       # - name: Build for Test
       #   uses: docker/build-push-action@v5
       #   with:
@@ -65,6 +78,7 @@ jobs:
       #     file: ${{ inputs.dockerfile }}
       #     load: true
       #     tags: ${{ env.TEST_TAG }}
+      #
       # - name: Test
       #   # show that at least --help command is running
       #   run: |
@@ -78,6 +92,6 @@ jobs:
           # QEMU and base python image, for now build only for
           # linux/amd64 and linux/arm64
           # cache-from: type=registry,ref=${{ env.LATEST_TAG }}
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ env.LATEST_TAG }},${{ env.VERSION_TAG }}
+          platforms: ${{ inputs.platforms }}
+          tags: ${{ env.LATEST_TAG }}${{ env.APPENDIX_TAG }},${{ env.VERSION_TAG }}${{ env.APPENDIX_TAG }}
           push: true

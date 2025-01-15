@@ -12,6 +12,8 @@ on:
     branches:
     - main
     - dev
+  schedule: # nightly
+    - cron: '0 0 * * *'
   workflow_dispatch:  # Allows to trigger the workflow manually in GitHub UI
 
 # If another push to the same PR or branch happens while this workflow is still running,
@@ -25,21 +27,38 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  POETRY_VERSION: "1.7.1"
+  POETRY_VERSION: "1.8.4"
   WORKDIR: "libs/infinity_emb"
 
 jobs:
-  lint:
+  lint-infinity_emb:
     uses:
       ./.github/workflows/linting.yaml
     with:
       working-directory: libs/infinity_emb
     secrets: inherit
 
-  test:
+  lint-embed_package:
+    uses:
+      ./.github/workflows/linting.yaml
+    with:
+      working-directory: libs/embed_package
+      extra_poetry: "--with test,lint,codespell"
+    secrets: inherit
+
+  test-infinity_emb:
     uses:
       ./.github/workflows/test.yaml
     with:
       working-directory: libs/infinity_emb
       upload_coverage: true
+    secrets: inherit
+  
+  test-embed_package:
+    uses:
+      ./.github/workflows/test.yaml
+    with:
+      working-directory: libs/embed_package
+      upload_coverage: false
+      extra_poetry: "--with test"
     secrets: inherit

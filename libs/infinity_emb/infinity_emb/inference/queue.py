@@ -1,6 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023-now michaelfeil
+
 import asyncio
 import threading
-from typing import Dict, List, Optional, Union
+from typing import Optional, Generator
 
 from infinity_emb.inference.caching_layer import Cache
 from infinity_emb.primitives import (
@@ -11,24 +14,27 @@ from infinity_emb.primitives import (
 
 
 class CustomFIFOQueue:
+    """Class which defines a custom ordering"""
+
     def __init__(self) -> None:
         """"""
         self._lock_queue_event = threading.Lock()
-        self._queue: List[PrioritizedQueueItem] = []
+        self._queue: list[PrioritizedQueueItem] = []
         # event that indicates items in queue.
         self._sync_event = threading.Event()
 
     def __len__(self):
         return len(self._queue)
 
-    async def extend(self, items: List[PrioritizedQueueItem]):
+    def extend(self, items: list[PrioritizedQueueItem]):
         with self._lock_queue_event:
+            # TODO: _lock event might be conjesting the main thread.
             self._queue.extend(items)
         self._sync_event.set()
 
     def pop_optimal_batches(
         self, size: int, max_n_batches: int = 4, timeout=0.2, **kwargs
-    ) -> Union[List[List[QueueItemInner]], None]:
+    ) -> Generator[list[QueueItemInner], None, None]:
         """
         pop batch `up to size` + `continuous (sorted)` from queue
 
@@ -42,15 +48,15 @@ class CustomFIFOQueue:
 
         returns:
             None: if there is not a single item in self._queue after timeout
-            else: List[EmbeddingInner] with len(1<=size)
+            else: list[EmbeddingInner] with len(1<=size)
         """
         if not self._queue:
             if not self._sync_event.wait(timeout):
-                return None
+                return
 
-        # slice as many batches as possible
-        n_batches = min(max_n_batches, max(1, len(self._queue) // size))
-        size_batches = size * n_batches
+        # Determine the number of batches to process
+        # n_batches = min(max_n_batches, max(1, len(self._queue) // size))
+        size_batches = size * max_n_batches
 
         with self._lock_queue_event:
             new_items_l = self._queue[:size_batches]
@@ -58,32 +64,26 @@ class CustomFIFOQueue:
             if not self._queue:
                 self._sync_event.clear()
 
-        if n_batches > 1:
-            # sort the sentences by len ->
-            # optimal padding per batch
+        if len(new_items_l) > size:
+            # Sort the items for optimal batching
             new_items_l.sort()
 
-        new_items: List[List[QueueItemInner]] = []
-        for i in range(n_batches):
-            mini_batch = new_items_l[size * i : size * (i + 1)]
-            mini_batch_e: List[QueueItemInner] = [
-                mi.item for mi in mini_batch if not mi.item.future.done()
-            ]
-            if mini_batch_e:
-                new_items.append(mini_batch_e)
-        if new_items:
-            return new_items
-        else:
-            return None
+        new_items: list[QueueItemInner] = [
+            mi.item for mi in new_items_l if not mi.item.future.done()
+        ]
+
+        for i in range(0, len(new_items), size):
+            yield new_items[i : i + size]
 
 
 class ResultKVStoreFuture:
     def __init__(self, cache: Optional[Cache] = None) -> None:
-        self._kv: Dict[str, EmbeddingReturnType] = {}
+        """holds instance of Cache"""
         self._cache = cache
 
     def __len__(self):
-        return len(self._kv)
+        """deprecated"""
+        return 0  # len(self._kv)
 
     async def wait_for_response(self, item: QueueItemInner) -> EmbeddingReturnType:
         """wait for future to return"""

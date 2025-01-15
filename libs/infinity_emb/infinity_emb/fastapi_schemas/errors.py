@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023-now michaelfeil
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
@@ -37,8 +40,17 @@ class OpenAIException(Exception):
         }
 
 
-def openai_exception_handler(request: Request, exc: OpenAIException):
-    return ORJSONResponse(
-        status_code=exc.code,
-        content=exc.json(),
-    )
+def openai_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, OpenAIException):
+        return ORJSONResponse(
+            status_code=exc.code,
+            content=exc.json(),
+        )
+    else:
+        return ORJSONResponse(
+            status_code=500,
+            content=OpenAIException(
+                message="Internal Server Error",
+                code=500,
+            ).json(),
+        )
