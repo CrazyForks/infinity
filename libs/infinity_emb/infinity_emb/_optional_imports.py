@@ -1,4 +1,11 @@
-# files just imports external dependencies. Do not import any infinity_emb modules here.
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023-now michaelfeil
+
+"""
+files just imports external dependencies. Do not import any infinity_emb modules here for sake of delayed imports.
+"""
+
+from __future__ import annotations
 
 import importlib.util
 from functools import cached_property
@@ -35,7 +42,7 @@ class OptionalImports:
         self._marked_as_dirty = exception
 
     def mark_required(self) -> bool:
-        if self.is_available or self._marked_as_dirty:
+        if not self.is_available or self._marked_as_dirty:
             self._raise_error()
         return True
 
@@ -47,15 +54,27 @@ class OptionalImports:
         )
         if self._marked_as_dirty:
             raise ImportError(msg) from self._marked_as_dirty
+        raise ImportError(msg)
 
 
-CHECK_DISKCACHE = OptionalImports("diskcache", "cache")
+CHECK_AIOHTTP = OptionalImports("aiohttp", "server")
+CHECK_COLPALI_ENGINE = OptionalImports("colpali_engine", "vision")
 CHECK_CTRANSLATE2 = OptionalImports("ctranslate2", "ctranslate2")
+CHECK_DISKCACHE = OptionalImports("diskcache", "cache")
 CHECK_FASTAPI = OptionalImports("fastapi", "server")
-CHECK_HF_TRANSFER = OptionalImports("hf_transfer", "hf_transfer")
 CHECK_ONNXRUNTIME = OptionalImports("optimum.onnxruntime", "optimum")
 CHECK_OPTIMUM = OptionalImports("optimum", "optimum")
-CHECK_SENTENCE_TRANSFORMERS = OptionalImports("sentence_transformers", "torch")
-CHECK_TRANSFORMERS = OptionalImports("transformers", "torch")
-CHECK_TORCH = OptionalImports("torch.nn", "torch")
+CHECK_OPTIMUM_AMD = OptionalImports("optimum.amd", "optimum")
+CHECK_OPTIMUM_NEURON = OptionalImports(
+    "optimum.neuron",
+    "<neuronx not available as extra, only runs on AMI image, no pip install possible.>",
+)
+CHECK_PIL = OptionalImports("PIL", "vision")
+CHECK_POSTHOG = OptionalImports("posthog", "server")
 CHECK_PYDANTIC = OptionalImports("pydantic", "server")
+CHECK_SENTENCE_TRANSFORMERS = OptionalImports("sentence_transformers", "torch")
+CHECK_SOUNDFILE = OptionalImports("soundfile", "audio")
+CHECK_TORCH = OptionalImports("torch.nn", "torch")
+CHECK_TRANSFORMERS = OptionalImports("transformers", "torch")
+CHECK_TYPER = OptionalImports("typer", "server")
+CHECK_UVICORN = OptionalImports("uvicorn", "server")

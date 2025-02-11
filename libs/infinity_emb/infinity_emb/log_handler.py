@@ -1,11 +1,14 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023-now michaelfeil
+
 import logging
 import sys
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any
 
 logging.getLogger().handlers.clear()
 
-handlers: List[Any] = []
+handlers: list[Any] = []
 try:
     from rich.console import Console
     from rich.logging import RichHandler
@@ -14,7 +17,7 @@ try:
 except ImportError:
     handlers.append(logging.StreamHandler(sys.stderr))
 
-LOG_LEVELS: Dict[str, int] = {
+LOG_LEVELS: dict[str, int] = {
     "critical": logging.CRITICAL,
     "error": logging.ERROR,
     "warning": logging.WARNING,
@@ -34,6 +37,8 @@ logger = logging.getLogger("infinity_emb")
 
 
 class UVICORN_LOG_LEVELS(Enum):
+    """Re-exports the uvicorn log levels for type hinting and usage."""
+
     critical = "critical"
     error = "error"
     warning = "warning"

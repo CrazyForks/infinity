@@ -5,8 +5,8 @@ import timeit
 from functools import partial
 
 import numpy as np
-import requests  # type: ignore
-from sentence_transformers import SentenceTransformer  # type: ignore
+import requests  # type: ignore[import-untyped]
+from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
 
 LIVE_URL = "http://localhost:7997"
 
@@ -20,8 +20,8 @@ def embedding_live_performance():
     req = session.get(f"{LIVE_URL}/models")
     assert req.status_code == 200
 
-    batch_size = req.json()["data"]["stats"]["batch_size"]
-    model_name = req.json()["data"]["id"]
+    batch_size = req.json()["data"][0]["stats"]["batch_size"]
+    model_name = req.json()["data"][0]["id"]
     print(f"batch_size is {batch_size}, model={model_name}")
     model = SentenceTransformer(model_name_or_path=model_name)
 
@@ -51,9 +51,7 @@ def embedding_live_performance():
     model = None
 
     print("Measuring latency via requests")
-    latency_request = timeit.timeit(
-        "remote(json_d, iters=5)", number=2, globals=locals()
-    )
+    latency_request = timeit.timeit("remote(json_d, iters=5)", number=2, globals=locals())
     print(f"Request latency: {latency_request}")
 
     assert latency_st * 1.1 > latency_request

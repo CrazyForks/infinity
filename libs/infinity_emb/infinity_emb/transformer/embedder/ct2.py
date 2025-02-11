@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023-now michaelfeil
+
 from __future__ import annotations
 
 import os
@@ -5,7 +8,9 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-from huggingface_hub.constants import HUGGINGFACE_HUB_CACHE  # type: ignore
+from huggingface_hub.constants import (  # type: ignore[import-untyped]
+    HUGGINGFACE_HUB_CACHE,
+)
 
 from infinity_emb._optional_imports import (
     CHECK_CTRANSLATE2,
@@ -22,7 +27,7 @@ if CHECK_TORCH.is_available:
     from torch.nn import Module
 else:
 
-    class Module:  # type: ignore
+    class Module:  # type: ignore[no-redef]
         pass
 
 
@@ -67,7 +72,7 @@ class CT2SentenceTransformer(SentenceTransformerPatched):
         engine_args=EngineArgs,
         ct2_compute_type: str = "default",
     ):
-        self._prefered_device = engine_args.device.value
+        self._prefered_device = engine_args.device.resolve()
         super().__init__(engine_args=engine_args)
         self[0] = CT2Transformer(
             self[0],
@@ -80,9 +85,7 @@ class CT2SentenceTransformer(SentenceTransformerPatched):
     def device(self):
         if self._prefered_device is not None:
             return torch.device(self._prefered_device)
-        return (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
+        return torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 class CT2Transformer(Module):
@@ -107,9 +110,7 @@ class CT2Transformer(Module):
         CHECK_CTRANSLATE2.mark_required()
         super().__init__()
 
-        logger.warning(
-            "deprecated: ct2 inference is deprecated and will be removed in the future."
-        )
+        logger.warning("deprecated: ct2 inference is deprecated and will be removed in the future.")
 
         self.tokenizer = transformer.tokenizer
         self._tokenize = transformer.tokenize
@@ -125,9 +126,7 @@ class CT2Transformer(Module):
         )
 
         if not os.path.exists(os.path.join(self.ct2_model_dir, "model.bin")) or force:
-            if os.path.exists(self.ct2_model_dir) and not os.listdir(
-                self.ct2_model_dir
-            ):
+            if os.path.exists(self.ct2_model_dir) and not os.listdir(self.ct2_model_dir):
                 force = True
             converter = ctranslate2.converters.TransformersConverter(model_dir)
             converter.convert(self.ct2_model_dir, force=force, vmap=vmap)
@@ -172,9 +171,9 @@ class CT2Transformer(Module):
         if device.type == "cpu":
             last_hidden_state = np.array(last_hidden_state)
 
-        features["token_embeddings"] = torch.as_tensor(
-            last_hidden_state, device=device
-        ).to(torch.float32)
+        features["token_embeddings"] = torch.as_tensor(last_hidden_state, device=device).to(
+            torch.float32
+        )
 
         return features
 

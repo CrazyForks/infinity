@@ -33,11 +33,11 @@ def test_crossencoder():
 def test_patched_crossencoder_vs_sentence_transformers():
     model = OptimumCrossEncoder(
         engine_args=EngineArgs(
-            model_name_or_path="Xenova/bge-reranker-base",
+            model_name_or_path="mixedbread-ai/mxbai-rerank-xsmall-v1",
             device="cpu",
         )
     )
-    model_unpatched = CrossEncoder("BAAI/bge-reranker-base")
+    model_unpatched = CrossEncoder("mixedbread-ai/mxbai-rerank-xsmall-v1")
 
     query = "Where is Paris?"
     documents = [
@@ -55,6 +55,4 @@ def test_patched_crossencoder_vs_sentence_transformers():
 
     rankings_unpatched = model_unpatched.predict(query_docs)
 
-    np.testing.assert_allclose(
-        rankings_sigmoid, rankings_unpatched, rtol=0.04, atol=0.04
-    )
+    np.testing.assert_allclose(rankings_sigmoid, rankings_unpatched, rtol=0.04, atol=0.04)
